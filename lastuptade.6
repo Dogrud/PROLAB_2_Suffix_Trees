@@ -1,0 +1,617 @@
+
+// Suffix Tree Kodu
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define toplamkarakter 256
+
+
+struct Suffix_kok {
+
+	//bir koku baska bir koke baglayan degisken
+	struct Suffix_kok *suffixbaglac;
+
+    struct Suffix_kok *eksuffix[toplamkarakter];
+
+	//suffix index ile kok mu yaprak mi oldugu belirtildi
+	int suffixIndex;
+
+    //start ve end degiskenleri ile indexler belirtildi
+    int bas;
+	int *bitis;
+
+};
+
+
+char girdi[100]; //girdi stringi tutan degisken
+
+typedef struct Suffix_kok kok;
+
+kok *baskok = NULL; //kok dugumunu gosteren pointer
+
+//sonyenidugum yeni olusturulup henuz suffixlink i olusturulmayan dugumler icin kullanılacak.
+kok *sonyenidugum = NULL;
+//aktifdugum degiskeni ile anlik aktif dugum pointer ile kullanildi
+kok *aktifdugum = NULL;
+//dugum sayisini sayan count degiskeni
+int count=0;
+
+//aktif uzunluk  dugumdeki anlik konumumuzu kullanmak icin kullanildi
+int aktifUzunluk = 0;
+
+/*aktifKenar  inputtaki karakterin indexini temsil ediyor.*/
+int aktifKenar = -1;
+
+
+// KalanSuffixSayisi suffix eklerken ekleme yapmamiz gereken suffix sayisini belirtir.
+int KalanSuffixSayisi = 0;
+
+int size = -1; //inputun uzunlugunu tutan degisken
+
+int leafEnd = -1;
+
+int *rootEnd = NULL;
+
+int *splitEnd = NULL;
+
+
+
+                                      //YENI DUGUM ACAN FONKSIYON
+kok *YeniDugumAc(int bas, int *bitis)
+{
+
+	kok *node =(kok*) malloc(sizeof(kok));
+	count++;
+	int i;
+	for (i = 0; i < toplamkarakter; i++)
+		node->eksuffix[i] = NULL;
+
+	/*kok dugumu icin suffixbaglac 0 olarak tanimlanacak
+	ic kokler icin, suufixbaglac kok dugum olarak secilecek
+	 */
+	node->suffixbaglac = baskok;
+	node->bas = bas;
+	node->bitis = bitis;
+
+	//suffixIndex her zaman basta -1 olarak tanimlanacak ve	asil suffix index degeri ilerde yapraklar icin de tanimlanacak
+
+	node->suffixIndex = -1;
+
+	return node;
+}
+                                            //KENAR UZUNLUGU BULAN FONKSIYON
+
+int KenarUzunlugu(kok *n) {
+
+	return *(n->bitis) - (n->bas) + 1;
+
+}
+
+                                                    //DOLASMA FONKSIYONU
+int AsagiDogruInme(kok *currNode)
+{
+	if (aktifUzunluk >= KenarUzunlugu(currNode))
+	{
+		aktifKenar =
+		(int)girdi[aktifKenar+KenarUzunlugu(currNode)]-(int)' ';
+		aktifUzunluk -= KenarUzunlugu(currNode);
+		aktifdugum = currNode;
+		return 1;
+	}
+	return 0;
+}
+                                        //!SUFFIX EKLEYEN FONKSIYON
+void extendSuffixTree(int pos)
+{
+	//1. Ekleme kuralina gore ekleme yapma
+	leafEnd = pos;
+
+	KalanSuffixSayisi++;
+
+	sonyenidugum = NULL;
+
+	//Eklenemsi gereken butun suffixleri agaca ekle
+	while(KalanSuffixSayisi > 0) {
+
+
+		if (aktifUzunluk == 0) {
+			aktifKenar = (int)girdi[pos]-(int)' ';
+		}
+
+		// Eger aktifkKenar ile baslayan bi dugum aktifdugumde yoksa
+
+		if (aktifdugum->eksuffix[aktifKenar] == NULL)
+		{
+			//2.ekleme kurali yeni yaprak olusturma
+			aktifdugum->eksuffix[aktifKenar] =	YeniDugumAc(pos, &leafEnd);
+
+			//Yeni olusan ic dugumun suffixbaglacini koyma
+			if (sonyenidugum != NULL)
+			{
+				sonyenidugum->suffixbaglac = aktifdugum;
+				sonyenidugum = NULL;
+			}
+		}
+		// Eger aktifkKenar ile baslayan bi dugum aktifdugumde varsa
+
+        else
+		{
+			// Yeni Dugume gecis yap
+			kok *next = aktifdugum->eksuffix[aktifKenar];
+			//kenarda asagiyurume yap
+			if (AsagiDogruInme(next))
+			{
+				//yeni bir aktifdugumden basla
+				continue;
+			}
+
+			// Ekleme 3.kurali (karakter zaten islem yapilan dugumde bulunuyorsa)
+
+			if (girdi[next->bas + aktifUzunluk] == girdi[pos])
+
+			{
+				//Yeni acilan dugumun suffixlinkini yaratma
+				if(sonyenidugum != NULL && aktifdugum != baskok)
+				{
+					sonyenidugum->suffixbaglac = aktifdugum;
+					sonyenidugum = NULL;
+				}
+
+
+				aktifUzunluk++;
+
+				break;
+			}
+
+			//Eger islem yaptigimiz kenarda yeni yaprak acmamiz gerekiyorsa burada olacagiz
+			//ve 2.ekleme kuralina gore ekleme yapacagiz
+
+			splitEnd = (int*) malloc(sizeof(int));
+
+			*splitEnd = next->bas + aktifUzunluk - 1;
+
+			//yeni ic dugum
+
+			kok *split = YeniDugumAc(next->bas, splitEnd);
+
+			aktifdugum->eksuffix[aktifKenar] = split;
+
+			//New leaf coming out of new internal node
+			split->eksuffix[(int)girdi[pos]-(int)' '] =YeniDugumAc(pos, &leafEnd);
+			next->bas += aktifUzunluk;
+			split->eksuffix[aktifKenar] = next;
+
+			/*We got a new internal node here. If there is any
+			internal node created in last extensions of same
+			phase which is still waiting for it's suffix link
+			reset, do it now.*/
+			if (sonyenidugum != NULL)
+			{
+			/*suffixLink of sonyenidugum points to current newly
+			created internal node*/
+				sonyenidugum->suffixbaglac = split;
+			}
+
+			/*Make the current newly created internal node waiting
+			for it's suffix link reset (which is pointing to root
+			at present). If we come across any other internal node
+			(existing or newly created) in next extension of same
+			phase, when a new leaf edge gets added (i.e. when
+			Extension Rule 2 applies is any of the next extension
+			of same phase) at that point, suffixLink of this node
+			will point to that internal node.*/
+			sonyenidugum = split;
+		}
+
+		/* One suffix got added in tree, decrement the count of
+		suffixes yet to be added.*/
+		KalanSuffixSayisi--;
+		if (aktifdugum == baskok && aktifUzunluk > 0) //APCFER2C1
+		{
+			aktifUzunluk--;
+			aktifKenar = (int)girdi[pos -KalanSuffixSayisi + 1]-(int)' ';
+		}
+
+		//APCFER2C2
+		else if (aktifdugum != baskok)
+		{
+			aktifdugum = aktifdugum->suffixbaglac;
+		}
+	}
+}
+                                                //YAZDIRMA FONKSIYONU
+void print(int i, int j)
+{
+	int k;
+
+	for (k=i; k<=j; k++)
+		printf("%c", girdi[k]);
+
+}
+
+//Print the suffix tree as well along with setting suffix index
+//So tree will be printed in DFS manner
+//Each edge along with it's suffix index will be printed
+
+
+                                        //!suffix_index_koyan_fonksiyon
+void setSuffixIndexByDFS(kok *n, int labelHeight)
+{
+	if (n == NULL) return;
+
+	if (n->bas != -1) //A non-root node
+	{
+		//Print the label on edge from parent to current node
+		print(n->bas, *(n->bitis));
+	}
+	int leaf = 1;
+	int i;
+	for (i = 0; i < toplamkarakter; i++)
+	{
+		if (n->eksuffix[i] != NULL)
+		{
+			if (leaf == 1 && n->bas!= -1)
+				printf(" [%d]\n", n->suffixIndex);
+
+			//Current node is not a leaf as it has outgoing
+			//edges from it.
+			leaf = 0;
+			setSuffixIndexByDFS(n->eksuffix[i],
+				labelHeight + KenarUzunlugu(n->eksuffix[i]));
+		}
+	}
+	if (leaf == 1)
+	{
+		n->suffixIndex = size - labelHeight;
+		printf(" [%d]\n", n->suffixIndex);
+	}
+}
+                                            //free suffix fonksiyonu
+void freeSuffixTreeByPostOrder(kok *n)
+{
+	if (n == NULL)
+		return;
+	int i;
+	for (i = 0; i < toplamkarakter; i++)
+	{
+		if (n->eksuffix[i] != NULL)
+		{
+			freeSuffixTreeByPostOrder(n->eksuffix[i]);
+		}
+	}
+	if (n->suffixIndex == -1)
+		free(n->bitis);
+	free(n);
+}
+
+/*Build the suffix tree and print the edge labels along with
+suffixIndex. suffixIndex for leaf edges will be >= 0 and
+for non-leaf edges will be -1*/
+                                                //suffix olusturan fonksiyon
+void buildSuffixTree()
+{
+	size = strlen(girdi);
+	int i;
+	rootEnd = (int*) malloc(sizeof(int));
+	*rootEnd = - 1;
+
+	/*Root is a special node with start and end indices as -1,
+	as it has no parent from where an edge comes to root*/
+	baskok = YeniDugumAc(-1, rootEnd);
+
+	aktifdugum = baskok; //First aktifdugum will be root
+	for (i=0; i<size; i++)
+		extendSuffixTree(i);
+	int labelHeight = 0;
+	setSuffixIndexByDFS(baskok, labelHeight);
+
+
+}
+                                                    //suffix olusma kontrol eden fonksiyon
+int suffiOlusmaKontrol(char input[100],int sizeipt)
+{
+ char suffixs[20][30];
+ char prefix[20][30];
+        for(int u=0;u<sizeipt;u++){
+            for(int i=0;1;i++)
+                {
+                        if(input[i+u]=='\0')
+                        {suffixs[u][i]=input[i+u];
+                        break;}
+                        suffixs[u][i]=input[i+u];
+                }
+                          }
+ for(int i=0;i<=sizeipt;i++){
+         printf("\n%s",suffixs[i]); }
+         printf("\nsuffixs bitiyor\n");
+         printf("\nprefix basliyor\n");
+        int control=0,itutucu,sayac=0;
+        for(int u=0;u<sizeipt;u++){
+            for(int i=0;i<=u;i++)
+                {
+                 prefix[u][i]=input[i];
+                 itutucu=i;
+                }
+                prefix[u][itutucu+1]='\0';
+                          }
+
+ for(int i=0;i<=sizeipt;i++){
+         printf("\n%s",prefix[i]); }
+         printf("\nprefixs bitiyor\n");
+
+int control3=0;
+for(int i=1;i<sizeipt;i++)
+{
+  for(int k=0;k<sizeipt;k++){
+  printf("\n%s == %s\n",suffixs[i],prefix[k]);
+  if(!(strcmp(suffixs[i],prefix[k])))
+        control3=1;
+        }
+    if(control3==1)
+        break;
+}
+if(control3==1)
+{
+printf("girdigininiz karakterlerin suffix agaci cizilemez\n");
+return 0;
+}
+else
+{
+  printf("girdigininiz karakterlerin suffix agaci cizilebilir\n");
+    return 1;
+}
+
+
+
+
+}
+///deneme fonksiyonlari
+
+int edgeLengthf(kok *n) {
+    if(n == baskok)
+        return 0;
+    return *(n->bitis) - (n->bas) + 1;
+}
+
+            //2.ister baslangici
+int traverseEdge(char *str, int idx, int bas, int bitis)
+{
+    int k = 0;
+    //Traverse the edge with character by character matching
+    for(k=bas; k<=bitis && str[idx] != '\0'; k++, idx++)
+    {
+        if(girdi[k] != str[idx])
+            return -1;  // mo match
+    }
+    if(str[idx] == '\0')
+        return 1;  // match
+    return 0;  // more characters yet to match
+}
+
+int doTraversalToCountLeaf(kok *n)
+{
+    if(n == NULL)
+        return 0;
+    if(n->suffixIndex > -1)
+    {
+        printf("\nBu pozisyonda bulundu: %d", n->suffixIndex);
+        return 1;
+    }
+    int counter = 0;
+    int i = 0;
+    for (i = 0; i < toplamkarakter; i++)
+    {
+        if(n->eksuffix[i] != NULL)
+        {
+            counter += doTraversalToCountLeaf(n->eksuffix[i]);
+        }
+    }
+    return counter;
+}
+
+int countLeaf(kok *n)
+{
+    if(n == NULL)
+        return 0;
+    return doTraversalToCountLeaf(n);
+}
+
+int doTraversal(kok *n, char* str, int idx)
+{
+    if(n == NULL)
+    {
+        return -1; // no match
+    }
+    int res = -1;
+    //If node n is not root node, then traverse edge
+    //from node n's parent to node n.
+    if(n->bas != -1)
+    {
+        res = traverseEdge(str, idx, n->bas, *(n->bitis));
+        if(res == -1)  //no match
+            return -1;
+        if(res == 1) //match
+        {
+            if(n->suffixIndex > -1)
+                printf("\nkatar kac defa geciyor: 1 ve pozisyonu: %d",n->suffixIndex);
+            else
+                printf("\nkatar sayaci: %d", countLeaf(n));
+            return 1;
+        }
+    }
+    //Get the character index to search
+    idx = idx + edgeLengthf(n);
+    //If there is an edge from node n going out
+    //with current character str[idx], traverse that edge
+    if(n->eksuffix[(int)str[idx]-(int)' '] != NULL)
+        return doTraversal(n->eksuffix[(int)str[idx]-(int)' '], str, idx);
+    else
+        return -1;  // no match
+}
+
+void checkForSubString(char* str)
+{
+    int res = doTraversal(baskok, str, 0);
+    if(res == 1)
+        printf("\nGirdi <%s> bir altdizedir.\n", str);
+    else
+        printf("\nGirdi <%s> bir altdize degildir.\n", str);
+}
+                                    //!2.ister bitisi
+
+                                    //!3.ister baslangici
+void doTraversal2(kok *n, int labelHeight, int* maxHeight,int* substringStartIndex)
+{
+    if(n == NULL)
+    {
+        return;
+    }
+    int i=0;
+    if(n->suffixIndex == -1) //If it is internal node
+    {
+        for (i = 0; i < 256; i++)
+        {
+            if(n->eksuffix[i] != NULL)
+            {
+                doTraversal2(n->eksuffix[i], labelHeight +
+                                KenarUzunlugu(n->eksuffix[i]), maxHeight,
+                                 substringStartIndex);
+            }
+        }
+    }
+    else if(n->suffixIndex > -1 &&
+                (*maxHeight < labelHeight - KenarUzunlugu(n)))
+    {
+        *maxHeight = labelHeight - KenarUzunlugu(n);
+        *substringStartIndex = n->suffixIndex;
+    }
+}
+
+
+void getLongestRepeatedSubstring()
+{
+    int maxHeight = 0;
+    int substringStartIndex = 0;
+    doTraversal2(baskok, 0, &maxHeight, &substringStartIndex);
+//    printf("maxHeight %d, substringStartIndex %d\n", maxHeight,
+//           substringStartIndex);
+    printf("En cok tekrar eden substring %s : ", girdi);
+    int k;
+    for (k=0; k<maxHeight; k++)
+        printf("%c", girdi[k + substringStartIndex]);
+    if(k == 0)
+        printf("Tekrar eden substring bulunamadi...");
+    printf("\n");
+}
+
+                                    //!3.ister bitisi
+
+
+
+
+
+                                    //!4.ister baslangici
+  void encoktekrar(){
+
+  int encokyapraksayi=0;
+      int encoktekrar=0;
+  int yapraksayisi=0;
+      int tekrar=0;
+
+  for(int i=0;i<256;i++)
+  {
+
+      if(baskok->eksuffix[i]==NULL||baskok->eksuffix[i]->suffixIndex!=-1)
+        continue;
+      kok *iter=(kok*)malloc(sizeof(kok));
+
+       yapraksayisi=0;
+       tekrar=0;
+       iter=baskok->eksuffix[i];
+
+            for(int k=0;k<256;k++)
+            {
+                if(iter->eksuffix[k]==NULL)
+                continue;
+
+                if(iter->eksuffix[k]->suffixIndex>-1)
+                yapraksayisi++;
+
+
+                else if(iter->eksuffix[k]->suffixIndex==-1)
+                {
+                 iter=iter->eksuffix[k];
+                 k=0;
+                 continue;
+                }
+            }
+            if (yapraksayisi>encokyapraksayi)
+            {
+                encoktekrar=i;
+                encokyapraksayi=yapraksayisi;
+            }
+        }
+
+    printf("en cok tekrar eden altkatar ");
+    for(int p=baskok->eksuffix[encoktekrar]->bas;p<=*(baskok->eksuffix[encoktekrar]->bitis);p++)
+    {
+        printf("%c",girdi[p]);
+	}
+        printf(" dir ve %d kere tekrar etmektedir.",encokyapraksayi);
+
+
+
+  }
+
+
+                                       //!4.ister bitisi
+                                        //! Main fonksiyonu
+int main()
+{
+    FILE *dosya = fopen("dosya.txt","r");
+    fscanf(dosya,"%s",girdi);
+	size = strlen(girdi);
+    buildSuffixTree();
+    int secim;
+    while(1)
+    {
+    printf("lutfen hangi islemi yapmak istediginizi seciniz(cikis yapmak icin lutfen 5 e basiniz)...");
+    printf("\n 1 = suffix olusum kontrolu\n 2 = sustring kontrolu\n 3 = tekrar eden en uzun alt katar\n 4 = en cok tekrar eden alt katar." );
+    scanf("%d",&secim);
+    if(secim==5)
+        break;
+    switch(secim){
+case 1:
+    if(suffiOlusmaKontrol(girdi,size)==0)
+    {
+      printf("lutfen farkli bir girdi veya girdiginiz girdinin sonnuna hic bulunmayan bir karakter ekelyiniz...");
+    }
+    break;
+case 2:
+    checkForSubString("c");
+    break;
+case 3:
+    break;
+case 4:
+    encoktekrar();
+    break;
+default:
+    printf("yanlis bi numaraya bastiniz ana menuye geri donuluyor...\n");
+    break;
+                 }
+    }
+
+
+    freeSuffixTreeByPostOrder(baskok);
+
+
+
+
+
+
+
+
+	return 0;
+}
