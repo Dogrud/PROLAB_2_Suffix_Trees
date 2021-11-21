@@ -334,10 +334,10 @@ int suffiOlusmaKontrol(char input[100],int sizeipt)
                         suffixs[u][i]=input[i+u];
                 }
                           }
- for(int i=0;i<=sizeipt;i++){
+ /*for(int i=0;i<=sizeipt;i++){
          printf("\n%s",suffixs[i]); }
          printf("\nsuffixs bitiyor\n");
-         printf("\nprefix basliyor\n");
+         printf("\nprefix basliyor\n");*/
         int control=0,itutucu,sayac=0;
         for(int u=0;u<sizeipt;u++){
             for(int i=0;i<=u;i++)
@@ -348,15 +348,15 @@ int suffiOlusmaKontrol(char input[100],int sizeipt)
                 prefix[u][itutucu+1]='\0';
                           }
 
- for(int i=0;i<=sizeipt;i++){
+/* for(int i=0;i<=sizeipt;i++){
          printf("\n%s",prefix[i]); }
-         printf("\nprefixs bitiyor\n");
+         printf("\nprefixs bitiyor\n");*/
 
 int control3=0;
 for(int i=1;i<sizeipt;i++)
 {
   for(int k=0;k<sizeipt;k++){
-  printf("\n%s == %s\n",suffixs[i],prefix[k]);
+  //printf("\n%s == %s\n",suffixs[i],prefix[k]);
   if(!(strcmp(suffixs[i],prefix[k])))
         control3=1;
         }
@@ -365,12 +365,12 @@ for(int i=1;i<sizeipt;i++)
 }
 if(control3==1)
 {
-printf("girdigininiz karakterlerin suffix agaci cizilemez\n");
+printf("\ngirdigininiz karakterlerin suffix agaci cizilemez\n\n");
 return 0;
 }
 else
 {
-  printf("girdigininiz karakterlerin suffix agaci cizilebilir\n");
+  printf("\ngirdigininiz karakterlerin suffix agaci cizilebilir\n\n");
     return 1;
 }
 
@@ -612,15 +612,23 @@ int main()
     FILE *dosya = fopen("dosya.txt","r");
     fscanf(dosya,"%s",girdi);
 	size = strlen(girdi);
-    suffix_olustur();
+    //suffix_olustur();
+    if(suffiOlusmaKontrol(girdi,size)==1)
+    {
+       suffix_olustur();
+    }
+
+
     int secim;
     while(1)
     {
-    printf("lutfen hangi islemi yapmak istediginizi seciniz(cikis yapmak icin lutfen 5 e basiniz)...");
+    printf("\n\nlutfen hangi islemi yapmak istediginizi seciniz(cikis yapmak icin lutfen 5 e basiniz)...");
     printf("\n 1 = suffix olusum kontrolu\n 2 = sustring kontrolu\n 3 = tekrar eden en uzun alt katar\n 4 = en cok tekrar eden alt katar." );
     scanf("%d",&secim);
+
     if(secim==5)
         break;
+
     switch(secim){
 case 1:
     if(suffiOlusmaKontrol(girdi,size)==0)
@@ -629,7 +637,7 @@ case 1:
     }
     break;
 case 2:
-    Katar_Kontrol("miss");
+    Katar_Kontrol("na");
     break;
 case 3:
     en_uzun_tekrar_eden_subs();
